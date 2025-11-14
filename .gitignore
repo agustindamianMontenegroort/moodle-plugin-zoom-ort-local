@@ -1,0 +1,23 @@
+# Moodle data
+moodledata/
+moodle/
+
+# Docker volumes
+mysql_data/
+
+# Environment files
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
