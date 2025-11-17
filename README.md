@@ -1,178 +1,436 @@
-# Plugin Moodle para Meeting ID de Zoom
+# 🎓 Moodle + Plugin Zoom Meeting ID
 
-Este proyecto contiene el desarrollo de un plugin para Moodle que permite obtener las Meeting ID de Zoom usando Docker Compose.
+Sistema completo de Moodle con Docker que incluye:
+- ✅ Plugin oficial de Zoom para crear reuniones
+- ✅ Plugin personalizado con API REST para consultar reuniones
+- ✅ Base de datos MySQL 8.0
+- ✅ Configuración lista para desarrollo
 
-## Requisitos Previos
+---
 
-- Docker
-- Docker Compose
+## 📋 Requisitos Previos
 
-## Inicio Rápido
+Antes de comenzar, asegúrate de tener instalado:
 
-### 1. Iniciar los servicios
+- [Docker](https://docs.docker.com/get-docker/) (versión 20.10 o superior)
+- [Docker Compose](https://docs.docker.com/compose/install/) (versión 2.0 o superior)
+- Git
+- 4GB de RAM libres
+- 10GB de espacio en disco
 
+### Verificar instalación:
 ```bash
-docker-compose up -d
+docker --version
+docker-compose --version
+git --version
 ```
 
-Esto iniciará:
-- MySQL 8.0 en el puerto 3306
-- Moodle con PHP 8.2 y Apache en el puerto 8080
+---
 
-### 2. Inicializar Moodle
+## 🚀 Instalación desde Cero
 
-La primera vez que inicies los contenedores, necesitas inicializar Moodle. Espera unos segundos a que la base de datos esté lista y luego ejecuta:
+### Paso 1: Clonar el Repositorio
 
 ```bash
+git clone <URL_DEL_REPOSITORIO>
+cd moodle-zoom-plugin
+```
+
+### Paso 2: Levantar los Contenedores
+
+```bash
+# Construir e iniciar los contenedores
+docker-compose up -d
+
+# Esperar a que la base de datos esté lista (30-60 segundos)
+docker-compose logs -f db
+# Presiona Ctrl+C cuando veas: "ready for connections"
+```
+
+### Paso 3: Inicializar Moodle
+
+```bash
+# Espera 1 minuto después de levantar los contenedores
 ./init-moodle.sh
 ```
 
-O manualmente:
+### Paso 4: Acceder a Moodle
 
-```bash
-docker-compose exec moodle php /var/www/html/admin/cli/install_database.php \
-    --agree-license \
-    --adminuser=admin \
-    --adminpass=admin123 \
-    --adminemail=admin@example.com \
-    --fullname="Moodle Zoom Plugin Dev" \
-    --shortname=zoomdev \
-    --wwwroot=http://localhost:8080 \
-    --dataroot=/var/moodledata \
-    --dbtype=mysqli \
-    --dbhost=db \
-    --dbname=moodle \
-    --dbuser=moodle \
-    --dbpass=moodle \
-    --non-interactive
-```
+Abre tu navegador en: **http://localhost:8080**
 
-### 3. Acceder a Moodle
-
-Abre tu navegador en: http://localhost:8080
-
-**Credenciales por defecto:**
+**Credenciales:**
 - Usuario: `admin`
 - Contraseña: `admin123`
 
-## Estructura del Proyecto
+---
+
+## 🔧 Configuración del Plugin de Zoom
+
+### Opción A: Instalación Automática (Recomendado)
+
+Si ya tienes el plugin oficial de Zoom descargado en una carpeta:
+
+1. Coloca la carpeta del plugin en la raíz del proyecto
+2. Ejecuta:
+```bash
+./install-zoom-plugin.sh
+```
+
+### Opción B: Instalación Manual
+
+1. Descarga el plugin oficial de Zoom:
+   - Visita: https://moodle.org/plugins/mod_zoom
+   - O desde GitHub: https://github.com/zoom/moodle-mod_zoom
+
+2. Descomprime y copia al contenedor:
+```bash
+docker cp zoom/ moodle_app:/var/www/html/mod/
+docker-compose exec moodle chown -R www-data:www-data /var/www/html/mod/zoom
+docker-compose exec moodle chmod -R 755 /var/www/html/mod/zoom
+```
+
+3. En Moodle, ve a:
+   ```
+   Site administration → Notifications → Upgrade Moodle database now
+   ```
+
+### Configurar Credenciales de Zoom
+
+1. **Crear una App en Zoom Marketplace:**
+   - Ve a: https://marketplace.zoom.us/
+   - Crea una app tipo "Server-to-Server OAuth"
+   - Obtén: Account ID, Client ID, Client Secret
+
+2. **Configurar en Moodle:**
+   ```
+   Site administration → Plugins → Activity modules → Zoom meeting
+   ```
+   - Ingresa las credenciales de Zoom
+   - Guarda los cambios
+
+3. **Configurar Scopes (Permisos):**
+   En Zoom Marketplace, agrega estos permisos:
+   - `meeting:read:admin`
+   - `meeting:write:admin`
+   - `user:read:admin`
+
+4. **Agregar tu usuario a Zoom:**
+   ```
+   Zoom Admin → User Management → Add Users
+   ```
+   - Agrega el mismo email que usas en Moodle
+
+📚 **Guía detallada:** Ver `GUIA_ZOOM_OFICIAL.md`
+
+---
+
+## 🔌 API REST - Plugin Personalizado
+
+El plugin personalizado (`local_zoommeetingid`) incluye una API REST para consultar reuniones.
+
+### Configuración Automática de la API
+
+```bash
+docker-compose exec moodle php /tmp/setup_webservice.php
+```
+
+Este script:
+- ✅ Habilita servicios web
+- ✅ Activa protocolo REST
+- ✅ Crea usuario `apiuser`
+- ✅ Genera token de acceso
+- ✅ Configura permisos
+
+### Probar la API
+
+**Endpoint:**
+```
+POST http://localhost:8080/webservice/rest/server.php
+```
+
+**Parámetros:**
+```
+wstoken=<TU_TOKEN>
+wsfunction=local_zoommeetingid_get_user_meetings
+moodlewsrestformat=json
+userid=2
+```
+
+**Ejemplo con curl:**
+```bash
+curl -X POST 'http://localhost:8080/webservice/rest/server.php' \
+  -d 'wstoken=<TU_TOKEN>' \
+  -d 'wsfunction=local_zoommeetingid_get_user_meetings' \
+  -d 'moodlewsrestformat=json' \
+  -d 'userid=2'
+```
+
+### Colección de Postman
+
+Importa la colección en Postman:
+```
+Zoom_Meeting_API.postman_collection.json
+```
+
+📚 **Documentación completa:** Ver `API_DOCUMENTATION.md`
+
+---
+
+## 📁 Estructura del Proyecto
 
 ```
 moodle-zoom-plugin/
-├── docker-compose.yml      # Configuración de Docker Compose
-├── Dockerfile.moodle       # Dockerfile para la imagen de Moodle
-├── .env                    # Variables de entorno (puedes editarlo)
-├── init-moodle.sh          # Script de inicialización
-├── plugins/                # Directorio para plugins locales
-│   └── zoom_meeting_id/    # Plugin que crearemos aquí
-└── README.md               # Este archivo
+├── docker-compose.yml              # Configuración de Docker
+├── Dockerfile.moodle              # Imagen de Moodle
+├── .gitignore                     # Archivos excluidos del repo
+├── init-moodle.sh                 # Script de inicialización
+├── install-zoom-plugin.sh         # Instalador del plugin oficial
+├── start-app.sh                   # Script de inicio rápido
+│
+├── plugins/                       # Plugins personalizados
+│   └── zoommeetingid/            # Plugin con API REST
+│       ├── classes/
+│       │   └── external.php      # Funciones de API
+│       ├── db/
+│       │   ├── access.php        # Permisos
+│       │   ├── install.php       # Script de instalación
+│       │   └── services.php      # Definición de servicios web
+│       ├── lang/
+│       │   └── en/
+│       │       └── local_zoommeetingid.php
+│       ├── index.php
+│       ├── lib.php
+│       ├── settings.php
+│       └── version.php
+│
+├── Zoom_Meeting_API.postman_collection.json  # Colección Postman
+├── API_DOCUMENTATION.md           # Documentación de API
+├── GUIA_ZOOM_OFICIAL.md          # Guía del plugin oficial
+├── GUIA_USO.md                   # Guía de uso general
+├── INSTALACION.md                # Guía de instalación detallada
+└── README.md                     # Este archivo
 ```
 
-## Desarrollo del Plugin
+---
 
-### Instalar tool_pluginskel
+## 🎯 Casos de Uso
 
-1. Accede a Moodle como administrador
-2. Ve a: Site administration > Plugins > Install plugins
-3. Busca "Plugin skeleton generator" o instálalo desde:
-   https://moodle.org/plugins/tool_pluginskel
+### 1. Crear una Reunión de Zoom
 
-### Crear el Plugin
+1. Accede a Moodle
+2. Ve a un curso
+3. Activa la edición
+4. Añade actividad → "Reunión Zoom"
+5. Completa el formulario y guarda
 
-1. Ve a: Site administration > Development > Plugin skeleton generator
-2. Completa el formulario:
-   - **Component name**: `local_zoommeetingid`
-   - **Plugin name**: `Zoom Meeting ID`
-   - **Author**: Tu nombre
-   - **Type**: Local plugin
-3. Descarga el plugin generado
-4. Extrae el contenido en `plugins/local_zoommeetingid/`
+### 2. Consultar Reuniones vía API
 
-### Estructura del Plugin
-
-El plugin tendrá la siguiente estructura:
-
-```
-local_zoommeetingid/
-├── version.php
-├── lang/
-│   └── en/
-│       └── local_zoommeetingid.php
-├── lib.php
-├── settings.php
-└── ...
-```
-
-## Comandos Útiles
-
-### Ver logs
 ```bash
+curl -X POST 'http://localhost:8080/webservice/rest/server.php' \
+  -d 'wstoken=<TU_TOKEN>' \
+  -d 'wsfunction=local_zoommeetingid_get_user_meetings' \
+  -d 'moodlewsrestformat=json' \
+  -d 'userid=2'
+```
+
+### 3. Integrar con Aplicación Externa
+
+Usa la API REST para:
+- Mostrar próximas reuniones en un dashboard
+- Enviar notificaciones automáticas
+- Crear reportes personalizados
+- Integrar con apps móviles
+
+---
+
+## 🔧 Comandos Útiles
+
+### Docker
+
+```bash
+# Ver logs de Moodle
 docker-compose logs -f moodle
+
+# Ver logs de la base de datos
 docker-compose logs -f db
-```
 
-### Detener servicios
-```bash
+# Reiniciar contenedores
+docker-compose restart
+
+# Detener contenedores
 docker-compose down
-```
 
-### Detener y eliminar volúmenes (¡CUIDADO! Esto borra los datos)
-```bash
+# Eliminar todo (¡CUIDADO! Borra datos)
 docker-compose down -v
-```
 
-### Acceder al contenedor de Moodle
-```bash
+# Acceder al contenedor de Moodle
 docker-compose exec moodle bash
 ```
 
-### Ejecutar comandos CLI de Moodle
+### Moodle
+
 ```bash
+# Limpiar caché
 docker-compose exec moodle php /var/www/html/admin/cli/purge_caches.php
+
+# Actualizar plugins
 docker-compose exec moodle php /var/www/html/admin/cli/upgrade.php --non-interactive
+
+# Backup de la base de datos
+docker-compose exec db mysqldump -u root -proot moodle > backup_$(date +%Y%m%d).sql
+
+# Restaurar base de datos
+docker-compose exec -T db mysql -u root -proot moodle < backup.sql
 ```
 
-### Reconstruir la imagen
+---
+
+## 🐛 Solución de Problemas
+
+### Problema: Los contenedores no inician
+
 ```bash
-docker-compose build --no-cache moodle
+# Ver qué está fallando
+docker-compose logs
+
+# Verificar puertos en uso
+sudo netstat -tulpn | grep :8080
+sudo netstat -tulpn | grep :3306
+
+# Detener y limpiar
+docker-compose down -v
+docker-compose up -d
 ```
 
-## Configuración
+### Problema: Error de conexión a la base de datos
 
-Puedes editar el archivo `.env` para cambiar:
-- Contraseñas de base de datos
-- Credenciales de administrador de Moodle
-- Configuraciones PHP
-
-## Desarrollo del Plugin de Zoom
-
-El plugin `local_zoommeetingid` permitirá:
-- Obtener las Meeting ID de las actividades de Zoom en Moodle
-- Listar todas las reuniones de Zoom configuradas
-- Exportar información de las reuniones
-
-## Notas
-
-- Los plugins locales se montan en `/var/www/html/local` dentro del contenedor
-- Los datos de Moodle se persisten en volúmenes Docker
-- La base de datos MySQL se persiste en un volumen separado
-
-## Solución de Problemas
-
-### Moodle no inicia
 ```bash
-docker-compose logs moodle
-```
+# Verificar que la BD esté lista
+docker-compose exec db mysql -u root -proot -e "SELECT 1"
 
-### Base de datos no responde
-```bash
-docker-compose logs db
+# Reiniciar la base de datos
 docker-compose restart db
 ```
 
-### Reinstalar desde cero
+### Problema: Plugin de Zoom no funciona
+
 ```bash
-docker-compose down -v
-docker-compose up -d
-./init-moodle.sh
+# Limpiar caché del plugin
+docker-compose exec moodle php -r "
+define('CLI_SCRIPT', true);
+require_once('/var/www/html/config.php');
+\$cache = cache::make('mod_zoom', 'zoomid');
+\$cache->purge();
+purge_all_caches();
+"
+
+# Verificar credenciales
+# Administración del Sitio → Plugins → Activity modules → Zoom meeting
 ```
+
+### Problema: API REST no responde
+
+```bash
+# Verificar servicios web habilitados
+docker-compose exec db mysql -u root -proot moodle -e "
+SELECT * FROM mdl_config WHERE name='enablewebservices';
+"
+
+# Reconfigurar servicios web
+docker-compose exec moodle php /tmp/setup_webservice.php
+```
+
+---
+
+## 📚 Documentación Adicional
+
+- **Plugin oficial de Zoom:** https://github.com/zoom/moodle-mod_zoom
+- **Moodle Web Services:** https://docs.moodle.org/en/Web_services
+- **Zoom API:** https://developers.zoom.us/docs/api/
+- **Docker Compose:** https://docs.docker.com/compose/
+
+---
+
+## 🔐 Seguridad
+
+### Recomendaciones para Producción:
+
+1. **Cambiar credenciales por defecto:**
+   - Usuario admin de Moodle
+   - Contraseña de MySQL
+   - Tokens de API
+
+2. **Usar HTTPS:**
+   - Configurar reverse proxy (nginx/traefik)
+   - Obtener certificado SSL (Let's Encrypt)
+
+3. **Backup regular:**
+   ```bash
+   # Automatizar con cron
+   0 2 * * * docker-compose exec db mysqldump -u root -proot moodle > /backups/moodle_$(date +\%Y\%m\%d).sql
+   ```
+
+4. **Restringir acceso a la API:**
+   - Limitar IPs permitidas
+   - Usar tokens con expiración
+   - Implementar rate limiting
+
+---
+
+## 🤝 Contribuir
+
+Para contribuir al proyecto:
+
+1. Fork el repositorio
+2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit tus cambios (`git commit -am 'Agregar nueva funcionalidad'`)
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
+5. Crea un Pull Request
+
+---
+
+## 📝 Licencia
+
+Este proyecto utiliza:
+- Moodle: GPL v3
+- Plugin oficial de Zoom: GPL v3
+- Plugin personalizado: GPL v3
+
+---
+
+## 👥 Autores
+
+- Plugin personalizado: [Tu nombre]
+- Configuración Docker: [Tu nombre]
+
+---
+
+## 📞 Soporte
+
+Para problemas o preguntas:
+1. Revisa la sección de [Solución de Problemas](#-solución-de-problemas)
+2. Consulta la documentación en `/docs`
+3. Abre un issue en GitHub
+
+---
+
+## ✅ Checklist de Verificación
+
+Antes de considerar la instalación completa, verifica:
+
+- [ ] Docker y Docker Compose instalados
+- [ ] Contenedores corriendo (`docker-compose ps`)
+- [ ] Moodle accesible en http://localhost:8080
+- [ ] Login con admin/admin123 funciona
+- [ ] Plugin de Zoom instalado y configurado
+- [ ] Al menos una reunión de Zoom creada
+- [ ] API REST configurada
+- [ ] Token de API generado
+- [ ] Colección de Postman funciona
+- [ ] curl de prueba devuelve datos
+
+---
+
+**Versión:** 1.0  
+**Última actualización:** Noviembre 2025  
+**Compatible con:** Moodle 4.2+

@@ -1,23 +1,51 @@
-# Moodle data
+# Volúmenes de Docker (datos persistentes)
+moodle_data/
 moodledata/
-moodle/
+db_data/
 
-# Docker volumes
-mysql_data/
-
-# Environment files
+# Variables de entorno con credenciales
 .env
 
-# IDE
-.vscode/
-.idea/
+# Logs
+*.log
+logs/
+
+# Archivos temporales
+tmp/
+*.tmp
 *.swp
 *.swo
 *~
 
-# OS
-.DS_Store
-Thumbs.db
+# IDEs
+.vscode/
+.idea/
+*.iml
 
-# Logs
-*.log
+# Mac OS
+.DS_Store
+
+# Tokens y credenciales (NUNCA subir al repo)
+tokens.txt
+credentials.txt
+
+# Backups
+*.backup
+*.bak
+*.sql
+
+# Node modules (si usas algún frontend)
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# Archivos específicos de Moodle que se generan
+moodledata/
+config.php

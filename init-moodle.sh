@@ -1,4 +1,4 @@
-#!/bin/bash
+image.png#!/bin/bash
 
 # Script para inicializar Moodle después de que el contenedor esté corriendo
 # Este script se ejecuta manualmente la primera vez
