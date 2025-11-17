@@ -66,23 +66,30 @@ Abre tu navegador en: **http://localhost:8080**
 
 ## 🔧 Configuración del Plugin de Zoom
 
-### Opción A: Instalación Automática (Recomendado)
+### Paso 1: Descargar el Plugin Oficial
 
-Si ya tienes el plugin oficial de Zoom descargado en una carpeta:
+**IMPORTANTE:** El plugin oficial NO está incluido en este repositorio. Debes descargarlo desde:
 
-1. Coloca la carpeta del plugin en la raíz del proyecto
+🔗 **https://moodle.org/plugins/mod_zoom**
+
+1. Ve a la página oficial
+2. Selecciona tu versión de Moodle (este proyecto usa Moodle 4.2)
+3. Descarga el archivo ZIP
+4. Descomprime el archivo
+
+### Paso 2: Instalar el Plugin
+
+#### Opción A: Instalación con Script (Recomendado)
+
+1. Coloca la carpeta del plugin descomprimida en la raíz del proyecto
 2. Ejecuta:
 ```bash
 ./install-zoom-plugin.sh
 ```
 
-### Opción B: Instalación Manual
+#### Opción B: Instalación Manual
 
-1. Descarga el plugin oficial de Zoom:
-   - Visita: https://moodle.org/plugins/mod_zoom
-   - O desde GitHub: https://github.com/zoom/moodle-mod_zoom
-
-2. Descomprime y copia al contenedor:
+1. Copia al contenedor:
 ```bash
 docker cp zoom/ moodle_app:/var/www/html/mod/
 docker-compose exec moodle chown -R www-data:www-data /var/www/html/mod/zoom

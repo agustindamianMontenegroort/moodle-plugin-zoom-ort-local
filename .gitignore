@@ -49,3 +49,9 @@ env/
 # Archivos específicos de Moodle que se generan
 moodledata/
 config.php
+
+# Plugin oficial de Zoom (descargar desde moodle.org)
+# NO incluir en el repositorio - los usuarios deben descargarlo
+zoom/
+mod_zoom/
+*zoom*.zip

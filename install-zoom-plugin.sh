@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # Script para instalar el plugin oficial de Zoom en Moodle
-# Autor: Script automatizado
-# Fecha: 2025-11-16
+# El plugin debe ser descargado previamente desde: https://moodle.org/plugins/mod_zoom
 
-set -e  # Detener en caso de error
+set -e
 
 # Colores para output
 RED='\033[0;31m'
@@ -31,69 +30,58 @@ if ! docker ps | grep -q moodle_app; then
     exit 1
 fi
 
-# Crear directorio temporal
-TEMP_DIR=$(mktemp -d)
-echo -e "${GREEN}✓${NC} Directorio temporal creado: $TEMP_DIR"
+echo -e "${YELLOW}📥 DESCARGAR PLUGIN OFICIAL${NC}"
+echo ""
+echo "Por favor, descarga el plugin oficial de Zoom desde:"
+echo -e "${GREEN}https://moodle.org/plugins/mod_zoom${NC}"
+echo ""
+echo "Pasos:"
+echo "1. Ve a la página web"
+echo "2. Selecciona tu versión de Moodle"
+echo "3. Descarga el archivo ZIP"
+echo "4. Descomprime el archivo"
+echo "5. Coloca la carpeta 'zoom' en la raíz de este proyecto"
+echo ""
+read -p "¿Ya descargaste y descomprimiste el plugin? (s/N): " -n 1 -r
+echo
 
-# Descargar el plugin oficial de Zoom
-echo -e "\n${BLUE}Descargando el plugin oficial de Zoom...${NC}"
-cd "$TEMP_DIR"
-
-# Descargar la última versión estable
-# Usamos moodle.org que es más confiable
-echo "Descargando desde moodle.org..."
-ZOOM_PLUGIN_URL="https://moodle.org/plugins/download.php/30693/mod_zoom_moodle44_2024022900.zip"
-curl -L "$ZOOM_PLUGIN_URL" -o zoom-plugin.zip
-
-# Si falla, intentar con GitHub usando git clone
-if [ ! -s zoom-plugin.zip ] || [ $(stat -f%z zoom-plugin.zip 2>/dev/null || stat -c%s zoom-plugin.zip) -lt 1000 ]; then
-    echo -e "${YELLOW}Descarga directa falló, intentando con git clone...${NC}"
-    rm -f zoom-plugin.zip
-    git clone --depth 1 https://github.com/zoom/moodle-mod_zoom.git zoom
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓${NC} Plugin clonado exitosamente"
-    else
-        echo -e "${RED}Error al descargar el plugin.${NC}"
-        echo -e "${YELLOW}Por favor, descarga manualmente desde:${NC}"
-        echo -e "https://moodle.org/plugins/mod_zoom"
-        rm -rf "$TEMP_DIR"
-        exit 1
-    fi
+if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+    echo -e "${YELLOW}Descarga el plugin primero y vuelve a ejecutar este script.${NC}"
+    exit 0
 fi
 
-echo -e "${GREEN}✓${NC} Plugin descargado exitosamente"
+# Buscar la carpeta del plugin
+ZOOM_DIR=""
 
-# Descomprimir el plugin (solo si se descargó un zip)
-if [ -f zoom-plugin.zip ]; then
-    echo -e "\n${BLUE}Descomprimiendo el plugin...${NC}"
-    unzip -q zoom-plugin.zip
-    
-    # Renombrar la carpeta (puede ser mod_zoom, moodle-mod_zoom, etc.)
-    if [ -d "zoom" ]; then
-        echo -e "${GREEN}✓${NC} Plugin ya está en directorio 'zoom'"
-    elif [ -d "mod_zoom" ]; then
-        mv mod_zoom zoom
-    else
-        # Buscar cualquier carpeta que contenga zoom
-        ZOOM_DIR=$(ls -d *zoom* 2>/dev/null | head -n 1)
-        if [ -n "$ZOOM_DIR" ]; then
-            mv "$ZOOM_DIR" zoom
-        fi
-    fi
-    
-    echo -e "${GREEN}✓${NC} Plugin descomprimido"
+# Buscar en la raíz del proyecto
+if [ -d "zoom" ]; then
+    ZOOM_DIR="zoom"
+elif [ -d "mod_zoom" ]; then
+    ZOOM_DIR="mod_zoom"
+else
+    # Buscar carpetas que contengan zoom
+    ZOOM_DIR=$(find . -maxdepth 2 -type d -name "*zoom*" 2>/dev/null | head -n 1)
 fi
 
-# Verificar que tenemos el directorio zoom
-if [ ! -d "zoom" ]; then
-    echo -e "${RED}Error: No se pudo preparar el directorio del plugin.${NC}"
-    rm -rf "$TEMP_DIR"
+if [ -z "$ZOOM_DIR" ]; then
+    echo -e "${RED}Error: No se encontró la carpeta del plugin de Zoom.${NC}"
+    echo -e "${YELLOW}Asegúrate de que la carpeta 'zoom' esté en la raíz del proyecto.${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓${NC} Plugin encontrado en: $ZOOM_DIR"
+echo ""
+
+# Verificar que tenga el archivo version.php
+if [ ! -f "$ZOOM_DIR/version.php" ]; then
+    echo -e "${RED}Error: La carpeta no parece ser un plugin válido de Zoom.${NC}"
+    echo -e "${YELLOW}Verifica que sea la carpeta correcta.${NC}"
     exit 1
 fi
 
 # Copiar el plugin al contenedor
-echo -e "\n${BLUE}Copiando el plugin al contenedor de Moodle...${NC}"
-docker cp zoom moodle_app:/tmp/
+echo -e "${BLUE}Copiando el plugin al contenedor de Moodle...${NC}"
+docker cp "$ZOOM_DIR" moodle_app:/tmp/zoom_temp
 
 # Verificar si ya existe el plugin en Moodle
 echo -e "\n${BLUE}Verificando instalación previa...${NC}"
@@ -106,14 +94,14 @@ if docker-compose exec -T moodle test -d /var/www/html/mod/zoom; then
         docker-compose exec -T moodle rm -rf /var/www/html/mod/zoom
     else
         echo -e "${YELLOW}Instalación cancelada.${NC}"
-        rm -rf "$TEMP_DIR"
+        docker-compose exec -T moodle rm -rf /tmp/zoom_temp
         exit 0
     fi
 fi
 
 # Mover el plugin a la ubicación correcta
 echo -e "${BLUE}Instalando el plugin en Moodle...${NC}"
-docker-compose exec -T moodle bash -c "mv /tmp/zoom /var/www/html/mod/"
+docker-compose exec -T moodle bash -c "mv /tmp/zoom_temp /var/www/html/mod/zoom"
 
 # Ajustar permisos
 echo -e "${BLUE}Ajustando permisos...${NC}"
@@ -121,10 +109,6 @@ docker-compose exec -T moodle chown -R www-data:www-data /var/www/html/mod/zoom
 docker-compose exec -T moodle chmod -R 755 /var/www/html/mod/zoom
 
 echo -e "${GREEN}✓${NC} Permisos ajustados"
-
-# Limpiar directorio temporal
-rm -rf "$TEMP_DIR"
-echo -e "${GREEN}✓${NC} Archivos temporales eliminados"
 
 # Limpiar caché de Moodle
 echo -e "\n${BLUE}Limpiando caché de Moodle...${NC}"
@@ -165,12 +149,10 @@ echo -e "   - Account ID"
 echo -e "   - Client ID"
 echo -e "   - Client Secret"
 echo -e "\n   ${YELLOW}Obténlos desde:${NC}"
-echo -e "   https://marketplace.zoom.us/"
+echo -e "   ${GREEN}https://marketplace.zoom.us/${NC}"
 echo -e "   (Crea una app tipo 'Server-to-Server OAuth')"
 echo -e "\n${BLUE}========================================${NC}"
-echo -e "${BLUE}Documentación del plugin:${NC}"
-echo -e "https://github.com/zoom/moodle-mod_zoom"
+echo -e "${BLUE}Documentación completa:${NC}"
+echo -e "Ver archivo: ${GREEN}GUIA_ZOOM_OFICIAL.md${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
-
-
